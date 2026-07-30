@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"github.com/szkiba/xk6-prometheus/internal"
+	"github.com/nuisobaka/xk6-prometheus-tags/internal"
 	"go.k6.io/k6/output"
 )
 
