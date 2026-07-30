@@ -3,6 +3,7 @@ package internal
 
 import (
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -99,7 +100,28 @@ func (a *PrometheusAdapter) tagsToLabelNames(tags *metrics.TagSet) []string {
 		keys = append(keys, key)
 	}
 
+	sort.Strings(keys)
+
 	return keys
+}
+
+// hasNewLabels checks if the sample tags contain keys not present in the existing label names.
+func hasNewLabels(existing labelNames, tags *metrics.TagSet) bool {
+	m := tags.Map()
+	m["tls_version"] = ""
+
+	existingSet := make(map[string]struct{}, len(existing))
+	for _, name := range existing {
+		existingSet[name] = struct{}{}
+	}
+
+	for key := range m {
+		if _, ok := existingSet[key]; !ok {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *PrometheusAdapter) tagsToLabelValues(labelNames []string, sampleTags *metrics.TagSet) []string {
@@ -181,7 +203,7 @@ func (a *PrometheusAdapter) handleTrend(sample *metrics.Sample) {
 	}
 }
 
-func (a *PrometheusAdapter) getCounter( //nolint:dupl
+func (a *PrometheusAdapter) getCounter( //nolint:dupl,cyclop
 	name string,
 	helpSuffix string,
 	tags *metrics.TagSet,
@@ -194,6 +216,12 @@ func (a *PrometheusAdapter) getCounter( //nolint:dupl
 		} else {
 			a.logger.Warn("Wrong metric type found")
 		}
+	}
+
+	if counter != nil && hasNewLabels(counter.labelNames, tags) {
+		a.registry.Unregister(counter.counterVec)
+		delete(a.metrics, name)
+		counter = nil
 	}
 
 	if counter == nil {
@@ -220,7 +248,7 @@ func (a *PrometheusAdapter) getCounter( //nolint:dupl
 	return counter
 }
 
-func (a *PrometheusAdapter) getGauge( //nolint:dupl
+func (a *PrometheusAdapter) getGauge( //nolint:dupl,cyclop
 	name string,
 	helpSuffix string,
 	tags *metrics.TagSet,
@@ -233,6 +261,12 @@ func (a *PrometheusAdapter) getGauge( //nolint:dupl
 		} else {
 			a.logger.Warn("Wrong metric type found")
 		}
+	}
+
+	if gauge != nil && hasNewLabels(gauge.labelNames, tags) {
+		a.registry.Unregister(gauge.gaugeVec)
+		delete(a.metrics, name)
+		gauge = nil
 	}
 
 	if gauge == nil {
@@ -268,6 +302,12 @@ func (a *PrometheusAdapter) getSummary(name string, helpSuffix string, tags *met
 		} else {
 			a.logger.Warn("Wrong metric type found")
 		}
+	}
+
+	if summary != nil && hasNewLabels(summary.labelNames, tags) {
+		a.registry.Unregister(summary.summaryVec)
+		delete(a.metrics, name)
+		summary = nil
 	}
 
 	if summary == nil {
@@ -309,6 +349,12 @@ func (a *PrometheusAdapter) getHistogram(
 		} else {
 			a.logger.Warn("Wrong metric type found")
 		}
+	}
+
+	if histogram != nil && hasNewLabels(histogram.labelNames, tags) {
+		a.registry.Unregister(histogram.histogramVec)
+		delete(a.metrics, name)
+		histogram = nil
 	}
 
 	if histogram == nil {
