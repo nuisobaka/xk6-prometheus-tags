@@ -1,4 +1,4 @@
-module github.com/szkiba/xk6-prometheus
+module github.com/nuisobaka/xk6-prometheus-tags
 
 go 1.24.0
 
